@@ -131,6 +131,14 @@ const options_entry emu_options::s_option_entries[] =
 	{ OPTION_BEAM_WIDTH_MAX,                             "1.0",       OPTION_FLOAT,      "set vector beam width maximum" },
 	{ OPTION_BEAM_INTENSITY_WEIGHT,                      "0",         OPTION_FLOAT,      "set vector beam intensity weight " },
 	{ OPTION_FLICKER,                                    "0",         OPTION_FLOAT,      "set vector flicker effect" },
+	{ OPTION_VECTOR_SERIAL,                              "",          OPTION_STRING,      "set vector serial device" },
+	{ OPTION_VECTOR_SCALE,                               "0.0",       OPTION_FLOAT,      "set vector serial output scale" },
+	{ OPTION_VECTOR_SCALE_X,                             "1.0",       OPTION_FLOAT,      "set vector x axis serial output scale" },
+	{ OPTION_VECTOR_SCALE_Y,                             "1.0",       OPTION_FLOAT,      "set vector y axis serial output scale" },
+	{ OPTION_VECTOR_OFFSET_X,                            "2048",       OPTION_FLOAT,      "set vector x axis serial offset (1024)" },
+	{ OPTION_VECTOR_OFFSET_Y,                            "2048",       OPTION_FLOAT,      "set vector y axis serial offset (1024)" },
+	{ OPTION_VECTOR_ROTATE,                              "0",         OPTION_INTEGER,    "set vector serial rotation (0,1,2,3)" },
+	{ OPTION_VECTOR_BRIGHT,                              "255",       OPTION_INTEGER,    "set vector threshold for bright lines (0-255)" },
 
 	// sound options
 	{ nullptr,                                           nullptr,     OPTION_HEADER,     "CORE SOUND OPTIONS" },
@@ -140,7 +148,7 @@ const options_entry emu_options::s_option_entries[] =
 
 	// input options
 	{ nullptr,                                           nullptr,     OPTION_HEADER,     "CORE INPUT OPTIONS" },
-	{ OPTION_COIN_LOCKOUT ";coinlock",                   "1",         OPTION_BOOLEAN,    "ignore coin inputs if coin lockout output is active" },
+	{ OPTION_COIN_LOCKOUT ";coinlock",                   "1",         OPTION_BOOLEAN,    "ignore coin inputs if coin lockout ouput is active" },
 	{ OPTION_CTRLR,                                      nullptr,     OPTION_STRING,     "preconfigure for specified controller" },
 	{ OPTION_MOUSE,                                      "0",         OPTION_BOOLEAN,    "enable mouse input" },
 	{ OPTION_JOYSTICK ";joy",                            "1",         OPTION_BOOLEAN,    "enable joystick input" },

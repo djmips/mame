@@ -17,6 +17,16 @@ public:
 	static float s_beam_width_min;
 	static float s_beam_width_max;
 	static float s_beam_intensity_weight;
+	static const char * s_serial;
+	static float s_serial_scale_x;
+	static float s_serial_scale_y;
+	static float s_serial_offset_x;
+	static float s_serial_offset_y;
+	static int s_serial_rotate;
+	static int s_serial_bright;
+	static int s_serial_drop_frame;
+	static int s_serial_sort;
+
 
 protected:
 	static void init(emu_options& options);
@@ -55,6 +65,35 @@ private:
 	int m_vector_index;
 	int m_min_intensity;
 	int m_max_intensity;
+
+	// Serial output option for driving vector display hardware
+	int m_serial_fd;
+	unsigned m_vector_transit[3];
+	unsigned char * m_serial_buf;
+	size_t m_serial_offset;
+	struct serial_segment_t * m_serial_segments;
+	struct serial_segment_t * m_serial_segments_tail;
+
+	void serial_reset();
+
+	void
+	serial_draw_point(
+		unsigned x,
+		unsigned y,
+		int intensity
+	);
+
+	void
+	serial_draw_line(
+		float x0,
+		float y0,
+		float x1,
+		float y1,
+		int intensity
+	);
+
+	void
+	serial_send();
 
 	float normalized_sigmoid(float n, float k);
 };
