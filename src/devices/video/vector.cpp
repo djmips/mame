@@ -56,6 +56,11 @@
 
 #include <inttypes.h>
 #include <sys/time.h>
+
+
+// hack
+#include <windows.h> 
+static HANDLE hSerial;
  
 
 #define VECTOR_SERIAL_MAX 4095
@@ -148,22 +153,43 @@ serial_open(
         const char * const dev
 )
 {
-#ifdef OSX	
-        const int fd = open(dev, O_RDWR | O_NONBLOCK | O_NOCTTY, 0666);
-        if (fd < 0)
-                return -1;
+		// Hack hack Windows code
 
-        // Disable modem control signals
-        struct termios attr;
-        tcgetattr(fd, &attr);
-        attr.c_cflag |= CLOCAL | CREAD;
-        attr.c_oflag &= ~OPOST;
-        tcsetattr(fd, TCSANOW, &attr);
-#else
-		const int fd = 0;
-#endif
-        return fd;
-}
+		hSerial = CreateFile("\\.\\COM8",
+				GENERIC_READ | GENERIC_WRITE,
+				0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+
+		DCB options = {0};
+		COMMTIMEOUTS timeouts = {0};
+
+		if(hSerial == INVALID_HANDLE_VALUE) goto error;
+
+		options.DCBlength=sizeof(options);
+
+		if(!GetCommState(hSerial, &options)) goto error;
+
+		options.BaudRate = 500000;
+		options.ByteSize = 8;
+		options.StopBits = ONESTOPBIT;
+		options.Parity   = NOPARITY;
+
+		if(!SetCommState(hSerial, &options)) goto error;
+
+		timeouts.ReadIntervalTimeout = 50;
+		timeouts.ReadTotalTimeoutConstant = 50;
+		timeouts.ReadTotalTimeoutMultiplier = 10;
+		timeouts.WriteTotalTimeoutConstant = 50;
+		timeouts.WriteTotalTimeoutMultiplier = 10;
+
+		if(!SetCommTimeouts(hSerial, &timeouts)) goto error;
+
+
+		return 1;
+
+ error:  
+  //SET_ERROR(XLINK_ERROR_FILE, strerror(GetLastError()));
+	return -1;
+ }
 
 void vector_device::serial_draw_point(
 	unsigned x,
