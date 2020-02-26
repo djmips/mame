@@ -153,9 +153,23 @@ serial_open(
         const char * const dev
 )
 {
+
+#ifdef OSX	
+        const int fd = open(dev, O_RDWR | O_NONBLOCK | O_NOCTTY, 0666);
+        if (fd < 0)
+                return -1;
+
+        // Disable modem control signals
+        struct termios attr;
+        tcgetattr(fd, &attr);
+        attr.c_cflag |= CLOCAL | CREAD;
+        attr.c_oflag &= ~OPOST;
+        tcsetattr(fd, TCSANOW, &attr);
+#endif
+
 		// Hack hack Windows code
 
-		hSerial = CreateFile("\\.\\COM8",
+		hSerial = CreateFile(TEXT("\\.\\COM8"),
 				GENERIC_READ | GENERIC_WRITE,
 				0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 
@@ -208,7 +222,7 @@ void vector_device::serial_draw_point(
 	// always flip the Y, since the vectorscope measures
 	// 0,0 at the bottom left corner, but this coord uses
 	// the top left corner.
-	y = VECTOR_SERIAL_MAX - y;
+	//y = VECTOR_SERIAL_MAX - y;
 
 	unsigned bright;
 	if (intensity > vector_options::s_serial_bright)
@@ -437,19 +451,38 @@ void vector_device::serial_send()
 		if (wlen > 64)
 			wlen = 64;
 
-		ssize_t rc = write(m_serial_fd, m_serial_buf + offset, m_serial_offset - offset);
-		if (rc <= 0)
+
+		DWORD bytesWritten;
+		WriteFile(hSerial, m_serial_buf + offset, m_serial_offset - offset, &bytesWritten, NULL);
+		FlushFileBuffers(hSerial);
+
+		if ( bytesWritten <= 0)
 		{
-			eagain++;
-			if (errno == EAGAIN)
-				continue;
-			perror(vector_options::s_serial);
-			close(m_serial_fd);
+			// This Windows serial code is not async so it can't fail with EAGAIN
+			// and then retry so it will fail immediately which could be a problem
+			// Look at WriteFileEx for async version possibly.
+			CloseHandle(hSerial);
 			m_serial_fd = -1;
 			break;
 		}
 
-		offset += rc;
+
+		//ssize_t rc = write(m_serial_fd, m_serial_buf + offset, m_serial_offset - offset);
+		// if (rc <= 0)
+		// {
+		// 	eagain++;
+		// 	if (errno == EAGAIN)
+		// 		continue;
+		// 	perror(vector_options::s_serial);
+		// 	close(m_serial_fd);
+		// 	m_serial_fd = -1;
+		// 	break;
+		// }
+
+		//offset += rc;
+		
+		offset += bytesWritten;
+
 	}
 
 	printf("%d eagain.\n", eagain);
