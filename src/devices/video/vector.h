@@ -80,7 +80,7 @@ private:
 	serial_draw_point(
 		unsigned x,
 		unsigned y,
-		int intensity
+		rgb_t argb
 	);
 
 	void
@@ -89,7 +89,7 @@ private:
 		float y0,
 		float x1,
 		float y1,
-		int intensity
+		rgb_t argb
 	);
 
 	void

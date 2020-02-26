@@ -125,25 +125,25 @@ vector_device::vector_device(const machine_config &mconfig, const char *tag, dev
 
 struct serial_segment_t {
 	struct serial_segment_t * next;
-	int intensity;
 	int x0;
 	int y0;
 	int x1;
 	int y1;
+	rgb_t argb;
 
 	serial_segment_t(
 		int x0,
 		int y0,
 		int x1,
 		int y1,
-		int intensity
+		rgb_t argb
 	) :
 		next(NULL),
-		intensity(intensity),
 		x0(x0),
 		y0(y0),
 		x1(x1),
-		y1(y1)
+		y1(y1),
+		argb(argb)
 	{
 	}
 };
@@ -208,7 +208,7 @@ serial_open(
 void vector_device::serial_draw_point(
 	unsigned x,
 	unsigned y,
-	int intensity
+	rgb_t argb
 )
 {
 	// make sure that we are in range; should always be
@@ -223,6 +223,8 @@ void vector_device::serial_draw_point(
 	// 0,0 at the bottom left corner, but this coord uses
 	// the top left corner.
 	//y = VECTOR_SERIAL_MAX - y;
+
+	int intensity = argb>>24 & 0xFF;
 
 	unsigned bright;
 	if (intensity > vector_options::s_serial_bright)
@@ -284,7 +286,7 @@ void vector_device::serial_draw_line(
 	float yf0,
 	float xf1,
 	float yf1,
-	int intensity
+	rgb_t argb
 )
 {
 	if (m_serial_fd < 0)
@@ -297,7 +299,7 @@ void vector_device::serial_draw_line(
 	const int y1 = (yf1 * VECTOR_SERIAL_MAX - VECTOR_SERIAL_MAX/2) * vector_options::s_serial_scale_y + vector_options::s_serial_offset_y;
 
 	serial_segment_t * const new_segment
-		= new serial_segment_t(x0, y0, x1, y1, intensity);
+		= new serial_segment_t(x0, y0, x1, y1, argb);
 
 	if (this->m_serial_segments_tail)
 		this->m_serial_segments_tail->next = new_segment;
@@ -400,11 +402,11 @@ void vector_device::serial_send()
 		int dy = y1 - y0;
 		int dist = sqrt(dx*dx + dy*dy);
 
-		serial_draw_point(x1, y1, s->intensity);
+		serial_draw_point(x1, y1, s->argb);
 		last_x = x1;
 		last_y = y1;
 
-		if (s->intensity > vector_options::s_serial_bright)
+		if (s->argb>>24 > vector_options::s_serial_bright)
 			m_vector_transit[2] += dist;
 		else
 			m_vector_transit[1] += dist;
@@ -543,14 +545,15 @@ void vector_device::add_point(int x, int y, rgb_t color, int intensity)
 
 	// hack for the vectrex
 	// -- convert "128,128,128" @ 255 to "255,255,255" @ 127
-	if (color.r() == 128
-	&&  color.b() == 128
-	&&  color.g() == 128
-	&&  intensity == 255)
-	{
-		color = rgb_t(255,255,255);
-		intensity = 128;
-	}
+	// if (color.r() == 128
+	// &&  color.b() == 128
+	// &&  color.g() == 128
+	// &&  intensity == 255)
+	// {
+	// 	color = rgb_t(255,255,255);
+	// 	intensity = 128;
+	// }
+
 	intensity = std::max(0, std::min(255, intensity));
 
 	m_min_intensity = intensity > 0 ? std::min(m_min_intensity, intensity) : m_min_intensity;
@@ -635,10 +638,11 @@ uint32_t vector_device::screen_update(screen_device &screen, bitmap_rgb32 &bitma
 				beam_width,
 				(curpoint->intensity << 24) | (curpoint->col & 0xffffff),
 				flags);
-				serial_draw_line(
-					coords.x0, coords.y0,
-					coords.x1, coords.y1,
-					curpoint->intensity);
+
+			serial_draw_line(
+				coords.x0, coords.y0,
+				coords.x1, coords.y1,
+				(curpoint->intensity << 24) | (curpoint->col & 0xffffff));
 		}
 
 		lastx = curpoint->x;
