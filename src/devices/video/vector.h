@@ -75,6 +75,7 @@ private:
 	struct serial_segment_t * m_serial_segments_tail;
 
 	void serial_reset();
+	void serial_init();
 
 	void
 	serial_draw_point(

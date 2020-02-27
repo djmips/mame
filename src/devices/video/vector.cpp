@@ -460,6 +460,7 @@ void vector_device::serial_send()
 
 		if ( bytesWritten <= 0)
 		{
+			printf("Closing Serial port\n");
 			// This Windows serial code is not async so it can't fail with EAGAIN
 			// and then retry so it will fail immediately which could be a problem
 			// Look at WriteFileEx for async version possibly.
@@ -487,12 +488,27 @@ void vector_device::serial_send()
 
 	}
 
-	printf("%d eagain.\n", eagain);
+	//printf("%d eagain.\n", eagain);
 	if (eagain > 20)
 		vector_options::s_serial_drop_frame = 1;
 
 	serial_reset();
 }
+
+void vector_device::serial_init()
+{
+	serial_reset();
+
+	if (!vector_options::s_serial || strcmp(vector_options::s_serial,"") == 0)
+	{
+		fprintf(stderr, "no serial vector display configured\n");
+		m_serial_fd = -2;
+	} else {
+		m_serial_fd = serial_open(vector_options::s_serial);
+		fprintf(stderr, "serial dev='%s' fd=%d\n", vector_options::s_serial, m_serial_fd);
+	}
+}
+
 void vector_device::device_start()
 {
 	vector_options::init(machine().options());
@@ -511,16 +527,7 @@ void vector_device::device_start()
 		// todo: how to signal an error?
 	}
 
-	serial_reset();
-
-	if (!vector_options::s_serial || strcmp(vector_options::s_serial,"") == 0)
-	{
-		fprintf(stderr, "no serial vector display configured\n");
-		m_serial_fd = -1;
-	} else {
-		m_serial_fd = serial_open(vector_options::s_serial);
-		fprintf(stderr, "serial dev='%s' fd=%d\n", vector_options::s_serial, m_serial_fd);
-	}
+	serial_init();
 }
 
 /*
@@ -649,6 +656,12 @@ uint32_t vector_device::screen_update(screen_device &screen, bitmap_rgb32 &bitma
 		lasty = curpoint->y;
 
 		curpoint++;
+	}
+
+	if (m_serial_fd == -1)
+	{
+		// try to restart the serial
+		serial_init();
 	}
 
 	serial_send();
