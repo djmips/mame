@@ -169,7 +169,11 @@ serial_open(
 
 		// Hack hack Windows code
 
-		hSerial = CreateFile(TEXT("\\.\\COM8"),
+		std::string deviceRoot = std::string("\\.\\");
+		std::string device = std::string(dev);
+		deviceRoot += device;
+
+		hSerial = CreateFile(deviceRoot.c_str(),
 				GENERIC_READ | GENERIC_WRITE,
 				0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 
@@ -205,6 +209,79 @@ serial_open(
 	return -1;
  }
 
+// void vector_device::serial_draw_point(
+// 	unsigned x,
+// 	unsigned y,
+// 	rgb_t argb
+// )
+// {
+// 	// make sure that we are in range; should always be
+// 	// due to clipping on the window, but just in case
+// 	if (x < 0) x = 0;
+// 	if (y < 0) y = 0;
+
+// 	if (x > VECTOR_SERIAL_MAX) x = VECTOR_SERIAL_MAX;
+// 	if (y > VECTOR_SERIAL_MAX) y = VECTOR_SERIAL_MAX;
+
+// 	// always flip the Y, since the vectorscope measures
+// 	// 0,0 at the bottom left corner, but this coord uses
+// 	// the top left corner.
+// 	//y = VECTOR_SERIAL_MAX - y;
+
+// 	int intensity = argb>>24 & 0xFF;
+
+// 	unsigned bright;
+// 	if (intensity > vector_options::s_serial_bright)
+// 		bright = 63;
+// 	else
+// 	if (intensity <= 0)
+// 		bright = 0;
+// 	else
+// 		bright = (intensity * 64) / 256;
+
+// 	if (bright > 63)
+// 		bright = 63;
+
+// 	if (vector_options::s_serial_rotate == 1)
+// 	{
+// 		// +90
+// 		unsigned tmp = x;
+// 		x = VECTOR_SERIAL_MAX - y;
+// 		y = tmp;
+// 	} else
+// 	if (vector_options::s_serial_rotate == 2)
+// 	{
+// 		// +180
+// 		x = VECTOR_SERIAL_MAX - x;
+// 		y = VECTOR_SERIAL_MAX - y;
+// 	} else
+// 	if (vector_options::s_serial_rotate == 3)
+// 	{
+// 		// -90
+// 		unsigned t = x;
+// 		x = y;
+// 		y = VECTOR_SERIAL_MAX - t;
+// 	}
+
+// 	uint32_t cmd = 0
+// 		| (2 << 30)
+// 		| (bright & 0x3F) << 24
+// 		| (x & 0xFFF) << 12
+// 		| (y & 0xFFF) <<  0
+// 		;
+
+// 	//printf("%08x %8d %8d %3d\n", cmd, x, y, intensity);
+
+// 	m_serial_buf[m_serial_offset++] = cmd >> 24;
+// 	m_serial_buf[m_serial_offset++] = cmd >> 16;
+// 	m_serial_buf[m_serial_offset++] = cmd >>  8;
+// 	m_serial_buf[m_serial_offset++] = cmd >>  0;
+
+// 	// todo: check for overflow;
+// 	// should always have enough points
+// }
+
+
 void vector_device::serial_draw_point(
 	unsigned x,
 	unsigned y,
@@ -213,8 +290,8 @@ void vector_device::serial_draw_point(
 {
 	// make sure that we are in range; should always be
 	// due to clipping on the window, but just in case
-	if (x < 0) x = 0;
-	if (y < 0) y = 0;
+	// if (x < 0) x = 0;  // Doesn't make sense on an unsigned var
+	// if (y < 0) y = 0;
 
 	if (x > VECTOR_SERIAL_MAX) x = VECTOR_SERIAL_MAX;
 	if (y > VECTOR_SERIAL_MAX) y = VECTOR_SERIAL_MAX;
@@ -224,49 +301,18 @@ void vector_device::serial_draw_point(
 	// the top left corner.
 	//y = VECTOR_SERIAL_MAX - y;
 
-	int intensity = argb>>24 & 0xFF;
+	x = x >> 2;
+	y = y >> 2;
 
-	unsigned bright;
-	if (intensity > vector_options::s_serial_bright)
-		bright = 63;
-	else
-	if (intensity <= 0)
-		bright = 0;
-	else
-		bright = (intensity * 64) / 256;
-
-	if (bright > 63)
-		bright = 63;
-
-	if (vector_options::s_serial_rotate == 1)
-	{
-		// +90
-		unsigned tmp = x;
-		x = VECTOR_SERIAL_MAX - y;
-		y = tmp;
-	} else
-	if (vector_options::s_serial_rotate == 2)
-	{
-		// +180
-		x = VECTOR_SERIAL_MAX - x;
-		y = VECTOR_SERIAL_MAX - y;
-	} else
-	if (vector_options::s_serial_rotate == 3)
-	{
-		// -90
-		unsigned t = x;
-		x = y;
-		y = VECTOR_SERIAL_MAX - t;
-	}
+	unsigned rgb12 = ((argb.r() >> 4) << 8) | ((argb.g() >> 4) << 4) | ((argb.b() >> 4) << 0);
 
 	uint32_t cmd = 0
-		| (2 << 30)
-		| (bright & 0x3F) << 24
-		| (x & 0xFFF) << 12
-		| (y & 0xFFF) <<  0
+		| (rgb12 & 0xFFF) << 20
+		| (x & 0x3FF) << 10
+		| (y & 0x3FF) <<  0
 		;
 
-	//printf("%08x %8d %8d %3d\n", cmd, x, y, intensity);
+	//printf("%08x %8d %8d %03x\n", cmd, x, y, rgb12);
 
 	m_serial_buf[m_serial_offset++] = cmd >> 24;
 	m_serial_buf[m_serial_offset++] = cmd >> 16;
@@ -276,7 +322,6 @@ void vector_device::serial_draw_point(
 	// todo: check for overflow;
 	// should always have enough points
 }
-
 
 // This will only be called with non-zero intensity lines.
 // we keep a linked list of the vectors and sort them with
@@ -321,6 +366,11 @@ void vector_device::serial_reset()
 	m_serial_buf[m_serial_offset++] = 0;
 	m_serial_buf[m_serial_offset++] = 0;
 	m_serial_buf[m_serial_offset++] = 0;
+
+
+	// end sync
+	m_serial_buf[m_serial_offset++] = 0xAA;
+
 
 	m_vector_transit[0] = 0;
 	m_vector_transit[1] = 0;
@@ -430,7 +480,7 @@ void vector_device::serial_send()
 
 	size_t offset = 0;
 
-	if(1)
+	if(0)
 	printf("%zu vectors: off=%u on=%u bright=%u%s\n",
 		m_serial_offset/4,
 		m_vector_transit[0],
@@ -444,6 +494,7 @@ void vector_device::serial_send()
 
 	if (vector_options::s_serial_drop_frame || skip_frame++ % 2 != 0)
 	{
+		//printf("We skipped a serial frame!\n");
 		// we skipped a frame, don't skip the next one
 		vector_options::s_serial_drop_frame = 0;
 	} else
